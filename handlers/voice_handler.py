@@ -1,23 +1,37 @@
+import os
 from aiogram import Router, F
 from aiogram.types import Message
-from config import INPUT_DIR
 from services.audio_processor import split_audio
-import os
+from services.model_inference import predict_emotion_for_chunk
 
 router = Router()
 
 @router.message(F.voice)
 async def handle_voice(message: Message):
-    file_id = message.voice.file_id
-    file = await message.bot.get_file(file_id)
 
-    input_path = f"{INPUT_DIR}/{file_id}.oga"
+    input_dir = "temp/input"
+    chunks_dir = "temp/chunks"
+
+    os.makedirs(input_dir, exist_ok=True)
+    os.makedirs(chunks_dir, exist_ok=True)
+
+    for f in os.listdir(chunks_dir):
+        os.remove(os.path.join(chunks_dir, f))
+
+    file = await message.bot.get_file(message.voice.file_id)
+    input_path = os.path.join(input_dir, "input.wav")
     await message.bot.download_file(file.file_path, input_path)
 
-    chunks = split_audio(input_path)
+    chunk_paths = split_audio(input_path, chunks_dir)
 
-    info_text = "Аудио разбито на фрагменты:\n"
-    for i, ch in enumerate(chunks):
-        info_text += f"> Фрагмент {i+1}: {os.path.basename(ch)}\n"
+    if not chunk_paths:
+        await message.answer("Аудио слишком короткое для анализа.")
+        return
 
-    await message.answer(info_text)
+    result_text = " *Распознанные эмоции по сегментам:*\n\n"
+
+    for i, chunk in enumerate(chunk_paths):
+        emotion, conf = predict_emotion_for_chunk(chunk)
+        result_text += f" Сегмент {i+1}: *{emotion}* (уверенность: {conf:.2f})\n"
+
+    await message.answer(result_text, parse_mode="Markdown")
