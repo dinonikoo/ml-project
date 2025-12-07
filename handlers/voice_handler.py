@@ -1,7 +1,12 @@
 import os
+import sys
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(BASE_DIR)
+
 from aiogram import Router, F
 from aiogram.types import Message
-from services.audio_processor import split_audio
+from services.audio_processor import split_audio_into_chunks, convert_ogg_to_wav
 from services.model_inference import predict_emotion_for_chunk
 
 router = Router()
@@ -19,10 +24,13 @@ async def handle_voice(message: Message):
         os.remove(os.path.join(chunks_dir, f))
 
     file = await message.bot.get_file(message.voice.file_id)
-    input_path = os.path.join(input_dir, "input.wav")
-    await message.bot.download_file(file.file_path, input_path)
+    input_path_ogg = os.path.join(input_dir, "input.ogg")
+    await message.bot.download_file(file.file_path, input_path_ogg)
 
-    chunk_paths = split_audio(input_path, chunks_dir)
+    input_path_wav = os.path.join(input_dir, "input.wav")
+    convert_ogg_to_wav(input_path_ogg,input_path_wav)
+
+    chunk_paths = split_audio_into_chunks(input_path_wav, chunks_dir)
 
     if not chunk_paths:
         await message.answer("Аудио слишком короткое для анализа.")

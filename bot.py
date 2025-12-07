@@ -4,7 +4,7 @@ from config import BOT_TOKEN
 from handlers.voice_handler import router as voice_router
 
 async def main():
-    bot = Bot(token=BOT_TOKEN)
+    bot = Bot(token="7745407172:AAFfpfLFzp6_KKqymqQ7bzktuHwxx0_qi_w")
     dp = Dispatcher()
 
     dp.include_router(voice_router)
